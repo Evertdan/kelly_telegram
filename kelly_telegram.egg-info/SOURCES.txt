@@ -1,0 +1,10 @@
+LICENSE
+README.md
+pyproject.toml
+bot/__init__.py
+bot/main.py
+kelly_telegram.egg-info/PKG-INFO
+kelly_telegram.egg-info/SOURCES.txt
+kelly_telegram.egg-info/dependency_links.txt
+kelly_telegram.egg-info/requires.txt
+kelly_telegram.egg-info/top_level.txt

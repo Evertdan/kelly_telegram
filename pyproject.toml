@@ -1,0 +1,95 @@
+# kelly_telegram/pyproject.toml
+
+# Especifica el sistema de construcción del proyecto (PEP 517)
+[build-system]
+requires = ["setuptools>=61.0"] # Requiere setuptools
+build-backend = "setuptools.build_meta" # Backend a usar
+
+# Metadatos del proyecto (PEP 621)
+[project]
+name = "kelly_telegram" # Nombre del paquete para el Bot
+version = "0.1.0" # Versión inicial
+description = "Cliente Bot de Telegram para interactuar con Kelly API (Backend RAG)."
+readme = "README.md"
+requires-python = ">=3.10"
+# CORRECCIÓN LICENCIA: Usar 'file' para apuntar al archivo LICENSE
+license = { file = "LICENSE" } # Asume que tienes un archivo LICENSE con el texto MIT
+keywords = ["telegram", "bot", "chatbot", "python-telegram-bot", "asyncio", "httpx", "kellybot"]
+authors = [
+    { name = "Tu Nombre / Equipo", email = "tu.correo@example.com" }, # Reemplaza
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Intended Audience :: End Users/Desktop",
+    # "License :: OSI Approved :: MIT License", # CORRECCIÓN: Eliminar clasificador de licencia obsoleto
+    "Natural Language :: Spanish",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Communications :: Chat",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+
+# Dependencias principales del proyecto (Runtime)
+dependencies = [
+    "python-telegram-bot[ext]>=21.0,<22.0",
+    "httpx>=0.25.0,<0.29.0",
+    "pydantic-settings>=2.0.0,<3.0.0",
+    # Añadir numpy y torch si embedding_service se moviera aquí,
+    # pero por ahora no son dependencias directas del bot.
+]
+
+# Dependencias opcionales para desarrollo y pruebas
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0,<9.0.0",
+    "pytest-cov>=4.0.0,<6.0.0",
+    "pytest-mock>=3.0.0,<4.0.0",
+    "pytest-asyncio>=0.21.0",
+    "httpx>=0.25.0,<0.29.0", # Requerido por el cliente de prueba
+    "ruff>=0.4.0,<1.0.0",
+    "black>=23.0.0,<25.0.0",
+    "mypy>=1.0.0,<2.0.0",
+    "pre-commit>=3.0.0,<4.0.0",
+]
+test = [
+    "pytest>=7.0.0,<9.0.0",
+    "pytest-cov>=4.0.0,<6.0.0",
+    "pytest-mock>=3.0.0,<4.0.0",
+    "pytest-asyncio>=0.21.0",
+    "httpx>=0.25.0,<0.29.0",
+]
+
+# --- INICIO SECCIÓN AÑADIDA/CORREGIDA ---
+# Configuración específica para Setuptools
+[tool.setuptools]
+# Indicar explícitamente cuál es el paquete a incluir (la carpeta 'bot').
+packages = ["bot"]
+# --- FIN SECCIÓN AÑADIDA/CORREGIDA ---
+
+# --- Configuraciones de Herramientas ---
+[tool.ruff]
+line-length = 88
+select = ["E", "W", "F", "I", "C", "B", "UP", "RUF"]
+ignore = []
+exclude = [ ".venv", "venv", ".git", "__pycache__", "dist", "build", "data", ".env", ".env.sample", "persistence" ]
+
+[tool.ruff.lint.isort]
+known_first_party = ["bot"] # Directorio de la aplicación del bot
+
+# Configuración para pytest
+[tool.pytest.ini_options]
+minversion = "7.0"
+addopts = "-ra -q --cov=bot --cov-report=term-missing" # Cobertura para 'bot/'
+testpaths = ["tests"]
+asyncio_mode = "auto"
+
+# Configuración para mypy
+[tool.mypy]
+python_version = "3.10"
+warn_return_any = true
+warn_unused_configs = true
+ignore_missing_imports = true

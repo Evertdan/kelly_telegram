@@ -1,0 +1,113 @@
+Metadata-Version: 2.4
+Name: kelly_telegram
+Version: 0.1.0
+Summary: Cliente Bot de Telegram para interactuar con Kelly API (Backend RAG).
+Author-email: Tu Nombre / Equipo <tu.correo@example.com>
+License: MIT License
+        
+        Copyright (c) [year] [fullname]
+        
+        Permission is hereby granted, free of charge, to any person obtaining a copy
+        of this software and associated documentation files (the "Software"), to deal
+        in the Software without restriction, including without limitation the rights
+        to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+        copies of the Software, and to permit persons to whom the Software is
+        furnished to do so, subject to the following conditions:
+        
+        The above copyright notice and this permission notice shall be included in all
+        copies or substantial portions of the Software.
+        
+        THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+        IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+        FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+        AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+        LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+        OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+        SOFTWARE.
+Keywords: telegram,bot,chatbot,python-telegram-bot,asyncio,httpx,kellybot
+Classifier: Development Status :: 3 - Alpha
+Classifier: Intended Audience :: Developers
+Classifier: Intended Audience :: End Users/Desktop
+Classifier: Natural Language :: Spanish
+Classifier: Operating System :: OS Independent
+Classifier: Programming Language :: Python :: 3
+Classifier: Programming Language :: Python :: 3.10
+Classifier: Programming Language :: Python :: 3.11
+Classifier: Programming Language :: Python :: 3.12
+Classifier: Topic :: Communications :: Chat
+Classifier: Topic :: Scientific/Engineering :: Artificial Intelligence
+Requires-Python: >=3.10
+Description-Content-Type: text/markdown
+License-File: LICENSE
+Requires-Dist: python-telegram-bot[ext]<22.0,>=21.0
+Requires-Dist: httpx<0.29.0,>=0.25.0
+Requires-Dist: pydantic-settings<3.0.0,>=2.0.0
+Provides-Extra: dev
+Requires-Dist: pytest<9.0.0,>=7.0.0; extra == "dev"
+Requires-Dist: pytest-cov<6.0.0,>=4.0.0; extra == "dev"
+Requires-Dist: pytest-mock<4.0.0,>=3.0.0; extra == "dev"
+Requires-Dist: pytest-asyncio>=0.21.0; extra == "dev"
+Requires-Dist: httpx<0.29.0,>=0.25.0; extra == "dev"
+Requires-Dist: ruff<1.0.0,>=0.4.0; extra == "dev"
+Requires-Dist: black<25.0.0,>=23.0.0; extra == "dev"
+Requires-Dist: mypy<2.0.0,>=1.0.0; extra == "dev"
+Requires-Dist: pre-commit<4.0.0,>=3.0.0; extra == "dev"
+Provides-Extra: test
+Requires-Dist: pytest<9.0.0,>=7.0.0; extra == "test"
+Requires-Dist: pytest-cov<6.0.0,>=4.0.0; extra == "test"
+Requires-Dist: pytest-mock<4.0.0,>=3.0.0; extra == "test"
+Requires-Dist: pytest-asyncio>=0.21.0; extra == "test"
+Requires-Dist: httpx<0.29.0,>=0.25.0; extra == "test"
+Dynamic: license-file
+
+# Kelly Telegram Bot
+
+Bot de Telegram para interactuar con la API KellyBot.
+
+## Requisitos
+
+- Python 3.10+
+- Token de Bot de Telegram
+- Credenciales para la API KellyBot
+
+## Configuración
+
+1. Copiar `.env.sample` a `.env`:
+   ```bash
+   cp .env.sample .env
+   ```
+2. Editar `.env` con tus credenciales:
+   ```
+   TELEGRAM_BOT_TOKEN=tu_token_aqui
+   API_URL=url_api_kellybot
+   API_KEY=tu_api_key
+   ```
+
+## Instalación
+
+1. Crear entorno virtual:
+   ```bash
+   python -m venv venv
+   source venv/bin/activate  # Linux/Mac
+   venv\Scripts\activate     # Windows
+   ```
+2. Instalar dependencias:
+   ```bash
+   pip install -e .
+   ```
+
+## Uso
+
+Ejecutar el bot:
+```bash
+python -m bot.main
+```
+
+## Estructura del Proyecto
+```
+kelly_telegram/
+├── bot/               # Código fuente
+│   ├── core/          # Configuración
+│   ├── handlers/      # Manejadores de Telegram
+│   └── services/      # Cliente API
+└── persistence/       # Datos persistentes

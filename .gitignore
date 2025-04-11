@@ -1,0 +1,25 @@
+# Entornos virtuales
+venv/
+.env/
+.env.local
+.env.development
+.env.test
+.env.production
+
+# Archivos de entorno
+.env
+.env.sample
+
+# Archivos de Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Persistencia
+persistence/bot_data.pickle
+
+# Editor/IDE
+.vscode/
+.idea/
+*.swp
+*.swo
