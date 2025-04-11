@@ -3,15 +3,19 @@
 
 """
 Pruebas unitarias para el manejador de mensajes de texto (bot/handlers/messages.py).
+CORREGIDO: Añadida importación de typing.Optional y otros.
 """
 
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
+# NUEVO: Importar tipos necesarios de typing
+from typing import Optional, List, Dict, Any
 
 # Importar Update y ContextTypes (o usar MagicMock directamente)
 try:
      from telegram import Update, User, Chat, Message
      from telegram.ext import ContextTypes
+     from telegram.constants import ParseMode # Importar ParseMode también
      PTB_AVAILABLE = True
 except ImportError:
      # Si PTB no está en el entorno de prueba por alguna razón, mockear todo
@@ -20,18 +24,25 @@ except ImportError:
      User = MagicMock()
      Chat = MagicMock()
      Message = MagicMock()
+     ParseMode = MagicMock() # Dummy para ParseMode
      PTB_AVAILABLE = False
 
 
-# Importar la función del handler que queremos probar
+# Importar la función del handler que queremos probar y settings
 # Asegúrate de que la ruta sea correcta
 try:
     from bot.handlers.messages import handle_text_message
-    from bot.core.config import settings # Necesitamos settings para los usuarios debug
+    from bot.core.config import settings
+    # Importar el cliente API dummy/real para obtener el mensaje de error default
+    from bot.services import api_client
     HANDLER_AVAILABLE = True
+    # Verificar si settings tiene el atributo esperado (puede ser el dummy si config falló)
+    if not hasattr(settings, 'authorized_debug_user_ids'):
+         print("[WARN test_messages.py] settings no tiene 'authorized_debug_user_ids'. Usando set vacío.")
+         settings.authorized_debug_user_ids = set() # Añadir atributo si falta en dummy
 except ImportError:
      pytest.skip("No se pudo importar el handler o la configuración, saltando pruebas.", allow_module_level=True)
-     HANDLER_AVAILABLE = False # Para satisfacer linters
+     HANDLER_AVAILABLE = False
 
 # Marcar todas las pruebas como async
 pytestmark = pytest.mark.asyncio
@@ -39,6 +50,7 @@ pytestmark = pytest.mark.asyncio
 
 # --- Funciones Auxiliares de Prueba ---
 
+# Usar Optional importado de typing
 def create_mock_update(user_id: int, chat_id: int, text: Optional[str]) -> MagicMock:
     """Crea un objeto Update simulado con la estructura mínima necesaria."""
     mock_user = MagicMock(spec=User)
@@ -50,7 +62,7 @@ def create_mock_update(user_id: int, chat_id: int, text: Optional[str]) -> Magic
 
     mock_message = MagicMock(spec=Message)
     mock_message.text = text
-    # Simular el método reply_text como una función async mockeada
+    # Simular reply_text como AsyncMock
     mock_message.reply_text = AsyncMock()
 
     mock_update = MagicMock(spec=Update)
@@ -62,126 +74,115 @@ def create_mock_update(user_id: int, chat_id: int, text: Optional[str]) -> Magic
 def create_mock_context(user_data: Optional[dict] = None) -> MagicMock:
      """Crea un objeto Context simulado."""
      mock_context = MagicMock(spec=ContextTypes.DEFAULT_TYPE)
-     # Simular user_data como un diccionario
      mock_context.user_data = user_data if user_data is not None else {}
      return mock_context
 
-# --- Pruebas ---
+# --- Pruebas (Sin cambios en la lógica de las pruebas) ---
 
-@patch("bot.handlers.messages.api_client.get_api_chat_response") # Mockear la llamada a la API
-async def test_handle_message_normal_user(mock_api_call, mocker):
+# Datos de prueba (sin cambios)
+TEST_API_KEY = "test-api-key-123" # No usado directamente aquí, pero sí en el mock de deps
+HEADERS = {"Authorization": f"Bearer {TEST_API_KEY}"}
+VALID_CHAT_PAYLOAD = {"message": "Hola", "session_id": "test-session-chat"}
+MOCKED_RAG_RESPONSE = {
+    "answer": "Respuesta simulada por el RAG.",
+    "sources": [{"source_id": "DOC_SIMULADO_q0", "score": 0.99}]
+}
+
+# @pytest.mark.skipif(not HANDLER_AVAILABLE, reason="Handler o dependencias no disponibles") # Opcional: saltar si falla import
+async def test_handle_message_normal_user(mocker): # Quitar 'client' si no se usa directamente aquí
     """Prueba la respuesta para un usuario normal (sin debug)."""
-    # Configurar mock de la API para devolver respuesta exitosa
-    mock_api_response = {
-        "answer": "Respuesta de la API.",
-        "sources": [{"source_id": "SRC1", "score": 0.9}]
-    }
-    mock_api_call.return_value = mock_api_response
+    mock_api_call = mocker.patch("bot.handlers.messages.api_client.get_api_chat_response", new_callable=AsyncMock)
+    mock_api_call.return_value = MOCKED_RAG_RESPONSE
+    mocker.patch.object(settings, 'authorized_debug_user_ids', set())
 
-    # Simular usuario NO autorizado para debug
-    mocker.patch.object(settings, 'authorized_debug_user_ids', set()) # Vacío
-
-    # Crear update y context simulados
-    user_id = 123
-    chat_id = 123
+    user_id, chat_id = 123, 123
     update = create_mock_update(user_id, chat_id, "Hola bot")
     context = create_mock_context()
 
-    # Ejecutar el handler
     await handle_text_message(update, context)
 
-    # Verificar que se llamó a la API
     mock_api_call.assert_awaited_once_with(message="Hola bot", session_id=f"tg_user_{user_id}")
-
-    # Verificar que se respondió al usuario SOLO con el 'answer'
     update.message.reply_text.assert_awaited_once()
     call_args, call_kwargs = update.message.reply_text.call_args
-    assert call_args[0] == "Respuesta de la API." # Verificar texto exacto
-    assert "Fuentes (Debug)" not in call_args[0] # Asegurar que NO contenga debug info
-    # Verificar parse_mode (debería ser None o no estar si no hay formato)
-    assert call_kwargs.get("parse_mode") != ParseMode.MARKDOWN_V2
-
-
-@patch("bot.handlers.messages.api_client.get_api_chat_response")
-async def test_handle_message_debug_user_debug_off(mock_api_call, mocker):
-    """Prueba la respuesta para un usuario autorizado pero con debug desactivado."""
-    mock_api_response = {"answer": "Respuesta API.", "sources": [{"source_id": "SRC1", "score": 0.9}]}
-    mock_api_call.return_value = mock_api_response
-    debug_user_id = 987
-    mocker.patch.object(settings, 'authorized_debug_user_ids', {debug_user_id}) # Autorizado
-
-    update = create_mock_update(debug_user_id, 987, "Pregunta")
-    # Simular que el modo debug NO está activo en user_data
-    context = create_mock_context(user_data={'debug_mode': False})
-
-    await handle_text_message(update, context)
-
-    # Verificar que se respondió SOLO con el 'answer'
-    update.message.reply_text.assert_awaited_once()
-    call_args, call_kwargs = update.message.reply_text.call_args
-    assert call_args[0] == "Respuesta API."
+    assert call_args[0] == "Respuesta simulada por el RAG."
     assert "Fuentes (Debug)" not in call_args[0]
     assert call_kwargs.get("parse_mode") != ParseMode.MARKDOWN_V2
 
-@patch("bot.handlers.messages.api_client.get_api_chat_response")
-async def test_handle_message_debug_user_debug_on(mock_api_call, mocker):
+
+async def test_handle_message_debug_user_debug_off(mocker):
+    """Prueba la respuesta para un usuario autorizado pero con debug desactivado."""
+    mock_api_call = mocker.patch("bot.handlers.messages.api_client.get_api_chat_response", new_callable=AsyncMock)
+    mock_api_call.return_value = MOCKED_RAG_RESPONSE
+    debug_user_id = 987
+    mocker.patch.object(settings, 'authorized_debug_user_ids', {debug_user_id})
+
+    update = create_mock_update(debug_user_id, 987, "Pregunta")
+    context = create_mock_context(user_data={'debug_mode': False}) # Debug OFF
+
+    await handle_text_message(update, context)
+
+    update.message.reply_text.assert_awaited_once()
+    call_args, call_kwargs = update.message.reply_text.call_args
+    assert call_args[0] == "Respuesta simulada por el RAG."
+    assert "Fuentes (Debug)" not in call_args[0]
+    assert call_kwargs.get("parse_mode") != ParseMode.MARKDOWN_V2
+
+
+async def test_handle_message_debug_user_debug_on(mocker):
     """Prueba la respuesta para un usuario autorizado Y con debug activado."""
-    mock_api_response = {
+    mock_api_call = mocker.patch("bot.handlers.messages.api_client.get_api_chat_response", new_callable=AsyncMock)
+    # Respuesta simulada con múltiples fuentes
+    mock_api_response_multi = {
         "answer": "Respuesta detallada.",
         "sources": [
             {"source_id": "FILE1_q0", "score": 0.95},
             {"source_id": "priority_context", "score": 1.0}
         ]
     }
-    mock_api_call.return_value = mock_api_response
+    mock_api_call.return_value = mock_api_response_multi
     debug_user_id = 987
     mocker.patch.object(settings, 'authorized_debug_user_ids', {debug_user_id}) # Autorizado
 
     update = create_mock_update(debug_user_id, 987, "Pregunta debug")
-    # Simular que el modo debug SÍ está activo en user_data
-    context = create_mock_context(user_data={'debug_mode': True})
+    context = create_mock_context(user_data={'debug_mode': True}) # Debug ON
 
     await handle_text_message(update, context)
 
-    # Verificar que se respondió CON el 'answer' Y las fuentes formateadas
     update.message.reply_text.assert_awaited_once()
     call_args, call_kwargs = update.message.reply_text.call_args
     reply_text = call_args[0]
     assert reply_text.startswith("Respuesta detallada.")
-    assert "Fuentes \\(Debug\\):" in reply_text # Verificar sección debug (con escape para MDV2)
+    assert "Fuentes \\(Debug\\):" in reply_text # Verificar sección debug (con escape MDV2)
     assert "`FILE1_q0` (0.950)" in reply_text # Verificar formato fuente 1
     assert "`priority_context` (1.000)" in reply_text # Verificar formato fuente 2
-    # Verificar que se usó ParseMode correcto
     assert call_kwargs.get("parse_mode") == ParseMode.MARKDOWN_V2
 
 
-@patch("bot.handlers.messages.api_client.get_api_chat_response")
-async def test_handle_message_api_error(mock_api_call, mocker):
+async def test_handle_message_api_error(mocker):
     """Prueba cómo responde el handler si la llamada a la API falla."""
-    # Configurar mock para devolver una respuesta de error simulada
-    mock_api_call.return_value = api_client.DEFAULT_API_ERROR_RESPONSE
+    # Configurar mock para devolver una respuesta de error simulada del api_client
+    mock_api_call = mocker.patch("bot.handlers.messages.api_client.get_api_chat_response", new_callable=AsyncMock)
+    # Asumiendo que DEFAULT_API_ERROR_RESPONSE está definido en api_client
+    # Importarlo o definirlo aquí para la aserción
+    error_response_text = "Mensaje de error simulado desde API Client"
+    mock_api_call.return_value = {"answer": error_response_text, "sources": [], "session_id":"err-sess"}
 
-    # Simular usuario normal
     mocker.patch.object(settings, 'authorized_debug_user_ids', set())
     user_id, chat_id = 456, 456
-    update = create_mock_update(user_id, chat_id, "Pregunta que causará error")
+    update = create_mock_update(user_id, chat_id, "Pregunta que causa error")
     context = create_mock_context()
 
     await handle_text_message(update, context)
 
-    # Verificar que se llamó a la API
-    mock_api_call.assert_awaited_once_with(message="Pregunta que causará error", session_id=f"tg_user_{user_id}")
-
-    # Verificar que se envió el mensaje de error por defecto del API Client
+    mock_api_call.assert_awaited_once_with(message="Pregunta que causa error", session_id=f"tg_user_{user_id}")
     update.message.reply_text.assert_awaited_once()
     call_args, call_kwargs = update.message.reply_text.call_args
-    assert api_client.DEFAULT_API_ERROR_RESPONSE["answer"] in call_args[0]
+    assert error_response_text in call_args[0]
 
-async def test_handle_message_no_text(mocker):
+
+async def test_handle_message_no_text():
     """Prueba que ignora mensajes sin texto."""
-    # Mockear seguridad por si acaso (aunque no debería llegar a llamar a la API)
-    mocker.patch("app.api.deps.get_api_key", return_value="dummy") # Si test_chat importara esto
-
+    # No necesita mocker porque no debería llamar a otros módulos
     update = create_mock_update(111, 111, None) # Mensaje sin texto
     context = create_mock_context()
     await handle_text_message(update, context)
